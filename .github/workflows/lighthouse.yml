@@ -13,28 +13,23 @@ jobs:
   lighthouse:
     runs-on: ubuntu-latest
     steps:
-      # Checkout the code from the repository
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Set up Node.js environment
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18.x'
 
-      # Install Lighthouse CLI globally
       - name: Install Lighthouse
         run: npm install -g lighthouse
 
-      # Fetch the URL from the backend (or set your target URL directly)
       - name: Fetch URL from Backend
         run: |
           export DYNAMIC_URL=$(curl -X POST https://light-house-backend.vercel.app/get-url -H "Content-Type: application/json" | jq -r '.url')
           echo "URL fetched: $DYNAMIC_URL"
           echo "DYNAMIC_URL=$DYNAMIC_URL" >> $GITHUB_ENV
 
-      # Run Lighthouse and generate HTML report for desktop
       - name: Run Lighthouse (Desktop) and generate HTML report
         run: |
           lighthouse ${{ env.DYNAMIC_URL }} \
@@ -45,28 +40,24 @@ jobs:
             --preset=desktop \
             --throttling-method=devtools
 
-      # Upload HTML report to Firebase Storage and get public URL
+      - name: Set up Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Authenticate Firebase
+        run: echo "${{ secrets.FIREBASE_TOKEN }}" | firebase login:ci
+
       - name: Upload HTML Report to Firebase Storage
         run: |
-          # Install Firebase CLI
-          npm install -g firebase-tools
+          firebase storage:upload ./lighthouse-report-desktop.html --public --project=${{ secrets.FIREBASE_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}" --destination=lighthouse-reports/lighthouse-report-desktop-${{ github.sha }}.html
           
-          # Authenticate Firebase using token (you can set FIREBASE_TOKEN in your GitHub secrets)
-          echo "${{ secrets.FIREBASE_TOKEN }}" | firebase login:ci
-          
-          # Upload file to Firebase Storage (replace with your storage bucket path)
-          firebase storage:upload ./lighthouse-report-desktop.html --public --project=your-firebase-project-id --destination=lighthouse-report-desktop.html
-          
-          # Get the public URL for the uploaded file
-          PUBLIC_URL="https://firebasestorage.googleapis.com/v0/b/your-firebase-project-id.appspot.com/o/lighthouse-report-desktop.html?alt=media"
-          echo "Public URL: $PUBLIC_URL"
+      - name: Get Public URL
+        run: |
+          PUBLIC_URL="https://firebasestorage.googleapis.com/v0/b/${{ secrets.FIREBASE_PROJECT_ID }}.appspot.com/o/lighthouse-reports%2Flighthouse-report-desktop-${{ github.sha }}.html?alt=media"
           echo "PUBLIC_URL=$PUBLIC_URL" >> $GITHUB_ENV
 
-      # Optional: Send the URL to a backend or store it
-      - name: Send URL to Backend or Store
+      - name: Send URL to Backend
         run: |
           curl -X POST -H "Content-Type: application/json" -d "{\"htmlReportUrl\":\"${{ env.PUBLIC_URL }}\"}" https://light-house-backend.vercel.app/store-html-url
 
-      # Display the public URL
       - name: Display HTML Report URL
         run: echo "HTML report URL: ${{ env.PUBLIC_URL }}"
