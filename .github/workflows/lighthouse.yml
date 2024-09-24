@@ -44,9 +44,11 @@ jobs:
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          firebase deploy --only storage --token "$FIREBASE_TOKEN" \
+          firebase storage:upload ./lighthouse-report-desktop.html \
+            --token "$FIREBASE_TOKEN" \
             --project ${{ secrets.FIREBASE_PROJECT_ID }} \
-            --public ./lighthouse-report-desktop.html \
+            --public \
+            --gzip \
             --destination "lighthouse-reports/lighthouse-report-desktop-${{ github.sha }}.html"
 
       - name: Get Public URL
