@@ -48,7 +48,6 @@ jobs:
             --token "$FIREBASE_TOKEN" \
             --project ${{ secrets.FIREBASE_PROJECT_ID }} \
             --public \
-            --gzip \
             --destination "lighthouse-reports/lighthouse-report-desktop-${{ github.sha }}.html"
 
       - name: Get Public URL
