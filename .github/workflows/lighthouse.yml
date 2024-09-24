@@ -48,8 +48,12 @@ jobs:
 
       - name: Upload HTML Report to Firebase Storage
         run: |
-          firebase storage:upload ./lighthouse-report-desktop.html --public --project=${{ secrets.FIREBASE_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}" --destination=lighthouse-reports/lighthouse-report-desktop-${{ github.sha }}.html
-          
+          firebase storage:upload ./lighthouse-report-desktop.html \
+            --public \
+            --project ${{ secrets.FIREBASE_PROJECT_ID }} \
+            --token "${{ secrets.FIREBASE_TOKEN }}" \
+            --destination "lighthouse-reports/lighthouse-report-desktop-${{ github.sha }}.html"
+
       - name: Get Public URL
         run: |
           PUBLIC_URL="https://firebasestorage.googleapis.com/v0/b/${{ secrets.FIREBASE_PROJECT_ID }}.appspot.com/o/lighthouse-reports%2Flighthouse-report-desktop-${{ github.sha }}.html?alt=media"
@@ -57,7 +61,10 @@ jobs:
 
       - name: Send URL to Backend
         run: |
-          curl -X POST -H "Content-Type: application/json" -d "{\"htmlReportUrl\":\"${{ env.PUBLIC_URL }}\"}" https://light-house-backend.vercel.app/store-html-url
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"htmlReportUrl\":\"${{ env.PUBLIC_URL }}\"}" \
+            https://light-house-backend.vercel.app/store-html-url
 
       - name: Display HTML Report URL
         run: echo "HTML report URL: ${{ env.PUBLIC_URL }}"
