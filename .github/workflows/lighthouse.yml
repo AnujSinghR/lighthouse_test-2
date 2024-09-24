@@ -1,0 +1,49 @@
+name: Generate and Send Lighthouse Report (JSON)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+
+      - name: Install Lighthouse
+        run: npm install -g lighthouse
+
+      # Fetch the URL from backend
+      - name: Fetch URL from Backend
+        run: |
+          echo "Fetching URL from backend..."
+          export DYNAMIC_URL=$(curl -X POST https://light-house-backend.vercel.app/get-url -H "Content-Type: application/json" | jq -r '.url') # Adjust URL and response parsing as needed
+          echo "URL fetched: $DYNAMIC_URL"
+          echo "DYNAMIC_URL=$DYNAMIC_URL" >> $GITHUB_ENV
+
+      # Run Lighthouse using the dynamic URL for desktop
+      - name: Run Lighthouse (Desktop) and generate JSON report
+        run: |
+          echo "Collecting Lighthouse data for desktop on ${{ env.DYNAMIC_URL }}..."
+          lighthouse ${{ env.DYNAMIC_URL }} --output json --output-path ./lighthouse-report-desktop.json --chrome-flags="--headless" --only-categories=performance,accessibility,best-practices,seo --preset=desktop --throttling-method=devtools
+
+      - name: Send Lighthouse Report to Backend
+        run: |
+          curl -X POST -H "Content-Type: application/json" -d @lighthouse-report-desktop.json https://light-house-backend.vercel.app/lighthouse-report
+
+      - name: Upload Lighthouse Report as Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: lighthouse-report-desktop
+          path: lighthouse-report-desktop.json
