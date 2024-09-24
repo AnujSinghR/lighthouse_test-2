@@ -1,4 +1,4 @@
-name: Generate and Send Lighthouse Report URL
+name: CI
 
 on:
   push:
@@ -7,7 +7,6 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
   lighthouse:
@@ -21,45 +20,41 @@ jobs:
         with:
           node-version: '18.x'
 
-      - name: Install Lighthouse and Firebase CLI
-        run: npm install -g lighthouse firebase-tools
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli
 
-      - name: Fetch URL from Backend
+      - name: Run Lighthouse CI
         run: |
-          export DYNAMIC_URL=$(curl -X POST https://light-house-backend.vercel.app/get-url -H "Content-Type: application/json" | jq -r '.url')
-          echo "URL fetched: $DYNAMIC_URL"
-          echo "DYNAMIC_URL=$DYNAMIC_URL" >> $GITHUB_ENV
+          echo "Collecting Lighthouse data..."
+          lhci collect --url https://google.com --numberOfRuns=3
+          echo "Uploading Lighthouse data..."
+          lhci upload --target=temporary-public-storage
+          echo "Asserting Lighthouse data..."
+          lhci assert --preset=lighthouse:recommended
 
-      - name: Run Lighthouse (Desktop) and generate HTML report
-        run: |
-          lighthouse ${{ env.DYNAMIC_URL }} \
-            --output html \
-            --output-path ./lighthouse-report-desktop.html \
-            --chrome-flags="--headless" \
-            --only-categories=performance,accessibility,best-practices,seo \
-            --preset=desktop \
-            --throttling-method=devtools
+      - name: List Lighthouse Report Files
+        run: ls -alh .lighthouseci/
 
-      - name: Upload HTML Report to Firebase Storage
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        run: |
-          firebase storage:upload ./lighthouse-report-desktop.html \
-            --token "$FIREBASE_TOKEN" \
-            --project ${{ secrets.FIREBASE_PROJECT_ID }} \
-            --public \
-            --destination "lighthouse-reports/lighthouse-report-desktop-${{ github.sha }}.html"
+      - name: Upload Lighthouse Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: lighthouse-report
+          path: .lighthouseci/
 
-      - name: Get Public URL
-        run: |
-          PUBLIC_URL="https://firebasestorage.googleapis.com/v0/b/${{ secrets.FIREBASE_PROJECT_ID }}.appspot.com/o/lighthouse-reports%2Flighthouse-report-desktop-${{ github.sha }}.html?alt=media"
-          echo "PUBLIC_URL=$PUBLIC_URL" >> $GITHUB_ENV
+  build:
+    runs-on: ubuntu-latest
 
-      - name: Send URL to Backend
-        run: |
-          curl -X POST \
-            -H "Content-Type: application/json" \
-            -d "{\"htmlReportUrl\":\"${{ env.PUBLIC_URL }}\"}" \
-            https://light-house-backend.vercel.app/store-html-url
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
