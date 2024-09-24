@@ -21,8 +21,8 @@ jobs:
         with:
           node-version: '18.x'
 
-      - name: Install Lighthouse
-        run: npm install -g lighthouse
+      - name: Install Lighthouse and Firebase CLI
+        run: npm install -g lighthouse firebase-tools
 
       - name: Fetch URL from Backend
         run: |
@@ -40,18 +40,13 @@ jobs:
             --preset=desktop \
             --throttling-method=devtools
 
-      - name: Set up Firebase CLI
-        run: npm install -g firebase-tools
-
-      - name: Authenticate Firebase
-        run: echo "${{ secrets.FIREBASE_TOKEN }}" | firebase login:ci
-
       - name: Upload HTML Report to Firebase Storage
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          firebase storage:upload ./lighthouse-report-desktop.html \
-            --public \
+          firebase deploy --only storage --token "$FIREBASE_TOKEN" \
             --project ${{ secrets.FIREBASE_PROJECT_ID }} \
-            --token "${{ secrets.FIREBASE_TOKEN }}" \
+            --public ./lighthouse-report-desktop.html \
             --destination "lighthouse-reports/lighthouse-report-desktop-${{ github.sha }}.html"
 
       - name: Get Public URL
