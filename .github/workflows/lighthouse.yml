@@ -1,4 +1,4 @@
-name: Generate and Send Lighthouse Report (JSON)
+name: Generate and Send Lighthouse Report URL
 
 on:
   push:
@@ -13,37 +13,60 @@ jobs:
   lighthouse:
     runs-on: ubuntu-latest
     steps:
+      # Checkout the code from the repository
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Set up Node.js environment
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18.x'
 
+      # Install Lighthouse CLI globally
       - name: Install Lighthouse
         run: npm install -g lighthouse
 
-      # Fetch the URL from backend
+      # Fetch the URL from the backend (or set your target URL directly)
       - name: Fetch URL from Backend
         run: |
-          echo "Fetching URL from backend..."
-          export DYNAMIC_URL=$(curl -X POST https://light-house-backend.vercel.app/get-url -H "Content-Type: application/json" | jq -r '.url') # Adjust URL and response parsing as needed
+          export DYNAMIC_URL=$(curl -X POST https://light-house-backend.vercel.app/get-url -H "Content-Type: application/json" | jq -r '.url')
           echo "URL fetched: $DYNAMIC_URL"
           echo "DYNAMIC_URL=$DYNAMIC_URL" >> $GITHUB_ENV
 
-      # Run Lighthouse using the dynamic URL for desktop
-      - name: Run Lighthouse (Desktop) and generate JSON report
+      # Run Lighthouse and generate HTML report for desktop
+      - name: Run Lighthouse (Desktop) and generate HTML report
         run: |
-          echo "Collecting Lighthouse data for desktop on ${{ env.DYNAMIC_URL }}..."
-          lighthouse ${{ env.DYNAMIC_URL }} --output json --output-path ./lighthouse-report-desktop.json --chrome-flags="--headless" --only-categories=performance,accessibility,best-practices,seo --preset=desktop --throttling-method=devtools
+          lighthouse ${{ env.DYNAMIC_URL }} \
+            --output html \
+            --output-path ./lighthouse-report-desktop.html \
+            --chrome-flags="--headless" \
+            --only-categories=performance,accessibility,best-practices,seo \
+            --preset=desktop \
+            --throttling-method=devtools
 
-      - name: Send Lighthouse Report to Backend
+      # Upload HTML report to Firebase Storage and get public URL
+      - name: Upload HTML Report to Firebase Storage
         run: |
-          curl -X POST -H "Content-Type: application/json" -d @lighthouse-report-desktop.json https://light-house-backend.vercel.app/lighthouse-report
+          # Install Firebase CLI
+          npm install -g firebase-tools
+          
+          # Authenticate Firebase using token (you can set FIREBASE_TOKEN in your GitHub secrets)
+          echo "${{ secrets.FIREBASE_TOKEN }}" | firebase login:ci
+          
+          # Upload file to Firebase Storage (replace with your storage bucket path)
+          firebase storage:upload ./lighthouse-report-desktop.html --public --project=your-firebase-project-id
+          
+          # Get the public URL for the uploaded file
+          PUBLIC_URL="https://firebasestorage.googleapis.com/v0/b/your-firebase-storage-bucket/o/lighthouse-report-desktop.html?alt=media"
+          echo "Public URL: $PUBLIC_URL"
+          echo "PUBLIC_URL=$PUBLIC_URL" >> $GITHUB_ENV
 
-      - name: Upload Lighthouse Report as Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: lighthouse-report-desktop
-          path: lighthouse-report-desktop.json
+      # Optional: Send the URL to a backend or store it
+      - name: Send URL to Backend or Store
+        run: |
+          curl -X POST -H "Content-Type: application/json" -d "{\"htmlReportUrl\":\"${{ env.PUBLIC_URL }}\"}" https://light-house-backend.vercel.app/store-html-url
+
+      # Display the public URL
+      - name: Display HTML Report URL
+        run: echo "HTML report URL: ${{ env.PUBLIC_URL }}"
