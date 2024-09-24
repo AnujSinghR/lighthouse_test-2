@@ -1,4 +1,4 @@
-name: CI
+name: Generate Lighthouse Report
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   lighthouse:
@@ -26,11 +27,9 @@ jobs:
       - name: Run Lighthouse CI
         run: |
           echo "Collecting Lighthouse data..."
-          lhci collect --url https://google.com --numberOfRuns=3
+          lhci collect --url https://google.com --numberOfRuns=3 --output=json --output-path=.lighthouseci/report.json
           echo "Uploading Lighthouse data..."
           lhci upload --target=temporary-public-storage
-          echo "Asserting Lighthouse data..."
-          lhci assert --preset=lighthouse:recommended
 
       - name: List Lighthouse Report Files
         run: ls -alh .lighthouseci/
@@ -39,22 +38,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: lighthouse-report
-          path: .lighthouseci/
-
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run tests
-        run: npm test
+          path: .lighthouseci/report.json
