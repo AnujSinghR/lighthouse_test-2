@@ -66,5 +66,4 @@ jobs:
             -d "{\"htmlReportUrl\":\"${{ env.PUBLIC_URL }}\"}" \
             https://light-house-backend.vercel.app/store-html-url
 
-      - name: Display HTML Report URL
-        run: echo "HTML report URL: ${{ env.PUBLIC_URL }}"
+      
