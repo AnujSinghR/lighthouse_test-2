@@ -55,10 +55,10 @@ jobs:
           echo "${{ secrets.FIREBASE_TOKEN }}" | firebase login:ci
           
           # Upload file to Firebase Storage (replace with your storage bucket path)
-          firebase storage:upload ./lighthouse-report-desktop.html --public --project=your-firebase-project-id
+          firebase storage:upload ./lighthouse-report-desktop.html --public --project=your-firebase-project-id --destination=lighthouse-report-desktop.html
           
           # Get the public URL for the uploaded file
-          PUBLIC_URL="https://firebasestorage.googleapis.com/v0/b/your-firebase-storage-bucket/o/lighthouse-report-desktop.html?alt=media"
+          PUBLIC_URL="https://firebasestorage.googleapis.com/v0/b/your-firebase-project-id.appspot.com/o/lighthouse-report-desktop.html?alt=media"
           echo "Public URL: $PUBLIC_URL"
           echo "PUBLIC_URL=$PUBLIC_URL" >> $GITHUB_ENV
 
